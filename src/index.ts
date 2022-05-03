@@ -1,28 +1,51 @@
 import 'dotenv/config';
-import { Client } from 'discord.js';
+import { Client, IntentsBitField } from 'discord.js';
 
-import { onCommand } from './commands';
+import connectDatabase from './service/db.service';
+import commands from './commands';
+import Guild from './models/guild.model';
 
-const client = new Client({ intents: [] });
+(async () => {
+    await connectDatabase();
 
-client.on('ready', () => {
-  console.log(`Logged in as ${client.user?.tag}!`);
-});
+    const client = new Client({ intents: [ IntentsBitField.Flags.Guilds ] });
 
-client.on('interactionCreate', async interaction => {
-  console.log(`New interaction: `, interaction.type);
-  console.log('is command: ', interaction.isCommand());
-  if (interaction.isCommand()) {
-    onCommand(interaction);
-    return;
-  }
+    client.on('ready', () => {
+        console.info(`- Logged in as ${client.user?.tag}!`);
+        Guild.startup();
+    });
 
-  if (interaction.isModalSubmit()) {
-    console.log('modal submit: ', interaction);
-    interaction.reply('Modal submit');
-    return;
-  }
+    //joined a server
+    client.on('guildCreate', async guild => {
+        const newGuild = new Guild({
+            guildId: guild.id,
+            guildName: guild.name
+        });
+        await newGuild.save();
+    });
 
-});
+    //removed from a server
+    client.on('guildDelete', async guild => {
+        if (!guild.available) return;
+        const guildToDelete = await Guild.findByGuildId(guild.id);
+        if (guildToDelete) await guildToDelete.remove();
+    });
 
-client.login(process.env.DISCORD_TOKEN);
+    client.on('interactionCreate', async interaction => {
+        console.debug('New interaction: ', interaction.type);
+        console.debug('is command: ', interaction.isCommand());
+        if (interaction.isCommand()) {
+            commands.onCommand(interaction);
+            return;
+        }
+
+        if (interaction.isModalSubmit()) {
+            console.debug('modal submit: ', interaction);
+            interaction.reply('Modal submit');
+            return;
+        }
+
+    });
+
+    await client.login(process.env.DISCORD_TOKEN);
+})();

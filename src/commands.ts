@@ -10,47 +10,50 @@ export interface Command {
   cb: (interaction: CommandInteraction) => Promise<void>;
 }
 
-const discordToken = process.env.DISCORD_TOKEN;
-const discordClientId = process.env.DISCORD_CLIENT_ID;
-const discordGuild = process.env.DISCORD_GUILD;
+class CommandManager {
+    private discordToken: string;
+    private discordClientId: string;
 
-const reactCommand: { [name: string]: Command } = {};
+    private rest: REST;
 
-export const addCommand = async (command: Command) => {
-  reactCommand[command.name] = command;
+    private reactCommand: { [name: string]: Command } = {};
+
+    constructor() {
+
+        if (!process.env.DISCORD_TOKEN) {
+            throw new Error('DISCORD_TOKEN is not defined');
+        }
+        if (!process.env.DISCORD_CLIENT_ID) {
+            throw new Error('DISCORD_CLIENT_ID is not defined');
+        }
+
+        this.discordToken = process.env.DISCORD_TOKEN;
+        this.discordClientId = process.env.DISCORD_CLIENT_ID;
+
+        importModules('./commands/', { fileExtensions: ['.ts'] });
+
+        this.rest = new REST({ version: '10' }).setToken(this.discordToken);
+    }
+
+    addCommand(command: Command) {
+        this.reactCommand[command.name] = command;
+    }
+
+    async onCommand(interaction: CommandInteraction) {
+        const toDo = this.reactCommand[interaction.commandName];
+
+        if (!toDo) {
+            await interaction.reply('Command not found');
+            return;
+        }
+        await toDo.cb(interaction);
+    }
+
+    async setGuildCommands(guildId: string) {
+        const json = Object.keys(this.reactCommand).map(name => this.reactCommand[name].json);
+
+        await this.rest.put(Routes.applicationGuildCommands(this.discordClientId, guildId), { body: json });
+    }
 }
 
-export const onCommand = async (interaction: CommandInteraction) => {
-  const toDo = reactCommand[interaction.commandName];
-
-  if (!toDo) {
-    await interaction.reply('Command not found');
-    return;
-  }
-  await toDo.cb(interaction);
-};
-
-(async () => {
-  if (!discordToken) {
-    throw new Error('DISCORD_TOKEN is not defined');
-  }
-  if (!discordClientId) {
-    throw new Error('DISCORD_CLIENT_ID is not defined');
-  }
-
-  if (!discordGuild) {
-    throw new Error('DISCORD_GUILD is not defined');
-  }
-
-  importModules('./commands/', { fileExtensions: ['.ts'] });
-
-  const rest = new REST({ version: '10' }).setToken(discordToken);
-
-  const json = Object.keys(reactCommand).map(name => reactCommand[name].json);
-
-  console.log('commands: ', reactCommand);
-  console.log('json', json);
-  const result = await rest.put(Routes.applicationGuildCommands(discordClientId, discordGuild), { body: json });
-  console.log('result: ', result);
-  console.log('Commands added to guild');
-})();
+export default new CommandManager();

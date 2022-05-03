@@ -2,8 +2,12 @@
   "name": "airsoftdiscord",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "main": "src/index.ts",
   "scripts": {
+    "start": "npm run build && npm run run",
+    "run": "node dist/index.js",
+    "build": "tsc",
+    "dev": "nodemon",
     "test": "echo \"Error: no test specified\" && exit 1",
     "env": "sync-dotenv --env .env",
     "prepare": "husky install"
@@ -25,13 +29,14 @@
     "eslint": "^8.14.0",
     "husky": "^7.0.4",
     "nodemon": "^2.0.16",
-    "sync-dotenv": "^2.7.0",
+    "sync-dotenv": "^1.0.0",
     "ts-node": "^10.7.0",
     "typescript": "^4.6.4"
   },
   "dependencies": {
     "discord.js": "^14.0.0-dev.1651493371-4ba0f56",
     "dotenv": "^16.0.0",
-    "import-modules": "^3.1.0"
+    "import-modules": "^3.1.0",
+    "mongoose": "^6.3.2"
   }
 }
