@@ -3,12 +3,9 @@ import { REST } from '@discordjs/rest';
 import { Routes } from 'discord-api-types/v10';
 import { CommandInteraction } from 'discord.js';
 import importModules from 'import-modules';
+import AppCommand from './API/appCommand.api';
 
-export interface Command {
-  name: string;
-  json: unknown;
-  cb: (interaction: CommandInteraction) => Promise<void>;
-}
+type ImportType = {[key: string]: {default: AppCommand}};
 
 class CommandManager {
   private discordToken: string;
@@ -16,7 +13,7 @@ class CommandManager {
 
   private rest: REST;
 
-  private reactCommand: { [name: string]: Command } = {};
+  private reactCommand: { [name: string]: AppCommand } = {};
 
   constructor() {
 
@@ -30,13 +27,18 @@ class CommandManager {
     this.discordToken = process.env.DISCORD_TOKEN;
     this.discordClientId = process.env.DISCORD_CLIENT_ID;
 
-    importModules('./commands/', { fileExtensions: ['.ts'] });
-
     this.rest = new REST({ version: '10' }).setToken(this.discordToken);
+
+    this.register();
   }
 
-  addCommand(command: Command) {
-    this.reactCommand[command.name] = command;
+  register() {
+    const importedCommands = importModules('./commands/', { fileExtensions: ['.ts', '.js'] }) as ImportType;
+
+    Object.keys(importedCommands).forEach(name => {
+      const cmd = importedCommands[name].default;
+      this.reactCommand[cmd.name] = cmd;
+    });
   }
 
   async onCommand(interaction: CommandInteraction) {
@@ -46,14 +48,16 @@ class CommandManager {
       await interaction.reply('Command not found');
       return;
     }
-    await toDo.cb(interaction);
+    await toDo.callBack(interaction);
   }
 
   async setGuildCommands(guildId: string) {
-    const json = Object.keys(this.reactCommand).map(name => this.reactCommand[name].json);
+    const json = Object.keys(this.reactCommand).map(name => this.reactCommand[name].getDiscordJsonBuilder());
 
     await this.rest.put(Routes.applicationGuildCommands(this.discordClientId, guildId), { body: json });
   }
 }
 
-export default new CommandManager();
+const commandManager = new CommandManager();
+
+export default commandManager;

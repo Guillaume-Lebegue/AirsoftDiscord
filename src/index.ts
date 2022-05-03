@@ -2,8 +2,9 @@ import 'dotenv/config';
 import { Client, IntentsBitField } from 'discord.js';
 
 import connectDatabase from './service/db.service';
-import commands from './commands';
 import Guild from './models/guild.model';
+import modalManager from './modals';
+import commandManager from './commands';
 
 (async () => {
   await connectDatabase();
@@ -33,15 +34,13 @@ import Guild from './models/guild.model';
 
   client.on('interactionCreate', async interaction => {
     console.debug('New interaction: ', interaction.type);
-    console.debug('is command: ', interaction.isCommand());
     if (interaction.isCommand()) {
-      commands.onCommand(interaction);
+      commandManager.onCommand(interaction);
       return;
     }
 
     if (interaction.isModalSubmit()) {
-      console.debug('modal submit: ', interaction);
-      interaction.reply('Modal submit');
+      modalManager.onReact(interaction);
       return;
     }
 
