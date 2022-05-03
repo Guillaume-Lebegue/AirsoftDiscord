@@ -11,49 +11,49 @@ export interface Command {
 }
 
 class CommandManager {
-    private discordToken: string;
-    private discordClientId: string;
+  private discordToken: string;
+  private discordClientId: string;
 
-    private rest: REST;
+  private rest: REST;
 
-    private reactCommand: { [name: string]: Command } = {};
+  private reactCommand: { [name: string]: Command } = {};
 
-    constructor() {
+  constructor() {
 
-        if (!process.env.DISCORD_TOKEN) {
-            throw new Error('DISCORD_TOKEN is not defined');
-        }
-        if (!process.env.DISCORD_CLIENT_ID) {
-            throw new Error('DISCORD_CLIENT_ID is not defined');
-        }
-
-        this.discordToken = process.env.DISCORD_TOKEN;
-        this.discordClientId = process.env.DISCORD_CLIENT_ID;
-
-        importModules('./commands/', { fileExtensions: ['.ts'] });
-
-        this.rest = new REST({ version: '10' }).setToken(this.discordToken);
+    if (!process.env.DISCORD_TOKEN) {
+      throw new Error('DISCORD_TOKEN is not defined');
+    }
+    if (!process.env.DISCORD_CLIENT_ID) {
+      throw new Error('DISCORD_CLIENT_ID is not defined');
     }
 
-    addCommand(command: Command) {
-        this.reactCommand[command.name] = command;
+    this.discordToken = process.env.DISCORD_TOKEN;
+    this.discordClientId = process.env.DISCORD_CLIENT_ID;
+
+    importModules('./commands/', { fileExtensions: ['.ts'] });
+
+    this.rest = new REST({ version: '10' }).setToken(this.discordToken);
+  }
+
+  addCommand(command: Command) {
+    this.reactCommand[command.name] = command;
+  }
+
+  async onCommand(interaction: CommandInteraction) {
+    const toDo = this.reactCommand[interaction.commandName];
+
+    if (!toDo) {
+      await interaction.reply('Command not found');
+      return;
     }
+    await toDo.cb(interaction);
+  }
 
-    async onCommand(interaction: CommandInteraction) {
-        const toDo = this.reactCommand[interaction.commandName];
+  async setGuildCommands(guildId: string) {
+    const json = Object.keys(this.reactCommand).map(name => this.reactCommand[name].json);
 
-        if (!toDo) {
-            await interaction.reply('Command not found');
-            return;
-        }
-        await toDo.cb(interaction);
-    }
-
-    async setGuildCommands(guildId: string) {
-        const json = Object.keys(this.reactCommand).map(name => this.reactCommand[name].json);
-
-        await this.rest.put(Routes.applicationGuildCommands(this.discordClientId, guildId), { body: json });
-    }
+    await this.rest.put(Routes.applicationGuildCommands(this.discordClientId, guildId), { body: json });
+  }
 }
 
 export default new CommandManager();

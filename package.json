@@ -10,7 +10,8 @@
     "dev": "nodemon",
     "test": "echo \"Error: no test specified\" && exit 1",
     "env": "sync-dotenv --env .env",
-    "prepare": "husky install"
+    "prepare": "husky install",
+    "lint": "eslint --fix . --ext .ts"
   },
   "repository": {
     "type": "git",
